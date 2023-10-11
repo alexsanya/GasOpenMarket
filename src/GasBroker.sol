@@ -78,6 +78,9 @@ contract GasBroker {
       uint256 ethAmount = _getEthAmount(token, value - reward);
       require(msg.value >= ethAmount, "Not enough ETH provided");
       payable(signer).sendValue(ethAmount);
+      if (msg.value > ethAmount) {
+        payable(msg.sender).sendValue(msg.value - ethAmount);
+      }
       SafeERC20.safeTransfer(IERC20(token), msg.sender, value);
     }
 
