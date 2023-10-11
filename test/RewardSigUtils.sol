@@ -1,18 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
+import "../src/GasBroker.sol";
+
 contract RewardSigUtils {
   bytes32 internal DOMAIN_SEPARATOR;
 
   constructor(bytes32 _DOMAIN_SEPARATOR) {
       DOMAIN_SEPARATOR = _DOMAIN_SEPARATOR;
-  }
-
-  bytes32 public constant REWARD_TYPEHASH = keccak256("Reward(uint256 value,bytes32 permitHash)");
-
-  struct Reward {
-    uint256 value;
-    bytes32 permitHash; //keccak256 for permit signature
   }
 
   // computes the hash of a reward
@@ -24,9 +19,9 @@ contract RewardSigUtils {
       return
           keccak256(
               abi.encode(
-                  REWARD_TYPEHASH,
-                  _permit.value,
-                  _permit.permitHash
+                  keccak256("Reward(uint256 value,bytes32 permitHash)"),
+                  _reward.value,
+                  _reward.permitHash
               )
           );
   }

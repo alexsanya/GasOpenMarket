@@ -13,35 +13,33 @@ interface IERC2612 {
 }
 
 struct Reward {
-    uint256 value;
-    bytes32 permitHash; //keccak256 for permit signature
+  uint256 value;
+  bytes32 permitHash; //keccak256 for permit signature
 }
 
 contract GasBroker {
   using Address for address payable;
 
-  string private constant REWARD_TYPE = "Reward(uint256 value,bytes32 permitHash)";
-  string private constant EIP712_DOMAIN = "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)";
   uint32 constant TWAP_PERIOD = 180;
-  bytes32 public immutable REWARD_DOMAIN_SEPARATOR;
+  bytes32 public immutable DOMAIN_SEPARATOR;
   IPriceOracle immutable priceOracle;
 
   constructor(uint256 chainId, address _priceOracle) {
-    REWARD_DOMAIN_SEPARATOR = keccak256(
+    DOMAIN_SEPARATOR = keccak256(
       abi.encode(
-        keccak256(abi.encode(EIP712_DOMAIN)),
-        keccak256("Gas broker"),
+        keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
+        keccak256(bytes("Gas broker")),
         keccak256("1"),
         chainId,
         address(this)
       )
     );
-    priceOracle =IPriceOracle(_priceOracle);
+    priceOracle = IPriceOracle(_priceOracle);
   }
 
   function swap(
     address signer,
-    IERC2612 token,
+    address token,
     uint256 value,
     uint256 deadline,
     uint256 reward,
@@ -54,8 +52,20 @@ contract GasBroker {
       require(value > reward, "Reward could not exceed value");
 
       bytes32 permitHash = keccak256(abi.encode(permitV,permitR,permitS));
-      require(verifyReward(signer, Reward(reward, permitHash), rewardV, rewardR, rewardS), "Reward signature is invalid");
-      token.permit(
+      require(
+        verifyReward(
+          signer,
+          Reward({
+            value: reward,
+            permitHash: permitHash
+          }),
+          rewardV,
+          rewardR,
+          rewardS
+        ),
+        "Reward signature is invalid"
+      );
+      IERC2612(token).permit(
         signer,
         address(this),
         value,
@@ -64,20 +74,21 @@ contract GasBroker {
         permitR,
         permitS
       );
-      uint256 ethAmount = _getEthAmount(address(token), value - reward);
+      SafeERC20.safeTransferFrom(IERC20(token), signer, address(this), value);
+      uint256 ethAmount = _getEthAmount(token, value - reward);
       require(msg.value >= ethAmount, "Not enough ETH provided");
       payable(signer).sendValue(ethAmount);
-      SafeERC20.safeTransfer(IERC20(address(token)), msg.sender, value);
+      SafeERC20.safeTransfer(IERC20(token), msg.sender, value);
     }
 
     function hashReward(Reward memory reward) private view returns (bytes32) {
       return keccak256(
         abi.encodePacked(
-          "\\x19\\x01",
-          REWARD_DOMAIN_SEPARATOR,
+          "\x19\x01",
+          DOMAIN_SEPARATOR,
           keccak256(
             abi.encode(
-              keccak256(abi.encode(REWARD_TYPE)),
+              keccak256("Reward(uint256 value,bytes32 permitHash)"),
               reward.value,
               reward.permitHash
             )
