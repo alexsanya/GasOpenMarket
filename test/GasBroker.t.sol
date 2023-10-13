@@ -28,6 +28,15 @@ contract GasBrokerTest is Test {
   address signer;
   uint256 deadline;
 
+  uint8 permitV;
+  bytes32 permitR;
+  bytes32 permitS;
+  uint8 rewardV;
+  bytes32 rewardR;
+  bytes32 rewardS;
+
+  bytes32 permitHash;
+
   function setUp() public {
     deadline = block.timestamp + 1 days;
     // deploy PriceOracle
@@ -47,13 +56,21 @@ contract GasBrokerTest is Test {
     permitSigUtils = new PermitSigUtils(token.DOMAIN_SEPARATOR());
     rewardSigUtils = new RewardSigUtils(gasBroker.DOMAIN_SEPARATOR());
 
+
+
+    // prepare signature for permit
+    (permitV, permitR, permitS) = getPermitSignature(signer, VALUE);
+
+    permitHash = keccak256(abi.encode(permitV,permitR,permitS));
+    // prepare signature for reward
+    (rewardV, rewardR, rewardS) = getRewardSignature(REWARD, permitHash);
   }
 
-  function getPermitSignature() internal view returns (uint8 v, bytes32 r, bytes32 s) {
+  function getPermitSignature(address _signer, uint256 _value) internal view returns (uint8 v, bytes32 r, bytes32 s) {
     PermitSigUtils.Permit memory permit = PermitSigUtils.Permit({
-      owner: signer,
+      owner: _signer,
       spender: address(gasBroker),
-      value: VALUE,
+      value: _value,
       nonce: 0,
       deadline: deadline
     });
@@ -61,9 +78,9 @@ contract GasBrokerTest is Test {
     (v, r, s) = vm.sign(SIGNER_PRIVATE_KEY, digest);
   }
 
-  function getRewardSignature(bytes32 permitHash) internal view returns (uint8 v, bytes32 r, bytes32 s) {
+  function getRewardSignature(uint256 reward, bytes32 permitHash) internal view returns (uint8 v, bytes32 r, bytes32 s) {
     Reward memory reward = Reward({
-      value: REWARD,
+      value: reward,
       permitHash: permitHash
     });
     bytes32 digest = rewardSigUtils.getTypedDataHash(reward);
@@ -71,14 +88,111 @@ contract GasBrokerTest is Test {
     (v, r, s) = vm.sign(SIGNER_PRIVATE_KEY, digest);
   }
 
-  function test_shouldSwapTokensToETH() public {
+  function test_shouldRevertWhenRewardExceedsValue() public {
+    (uint8 rewardV, bytes32 rewardR, bytes32 rewardS) = getRewardSignature(VALUE + 1, permitHash);
+    vm.expectRevert("Reward could not exceed value");
+    gasBroker.swap{ value: 1 ether }(
+      signer,
+      address(token),
+      VALUE,
+      deadline,
+      VALUE + 1,
+      permitV,
+      permitR,
+      permitS,
+      rewardV,
+      rewardR,
+      rewardS
+    );
+  }
+
+  function test_shouldRevertWhenPermitHashInRewardMessageIsInvalid() public {
     // prepare signature for permit
-    (uint8 permitV, bytes32 permitR, bytes32 permitS) = getPermitSignature();
+    (uint8 v, bytes32 r, bytes32 s) = getPermitSignature(signer, VALUE + 1);
 
-    bytes32 permitHash = keccak256(abi.encode(permitV,permitR,permitS));
+
+    bytes32 permitHash = keccak256(abi.encode(v,r,s));
     // prepare signature for reward
-    (uint8 rewardV, bytes32 rewardR, bytes32 rewardS) = getRewardSignature(permitHash);
+    (uint8 rewardV, bytes32 rewardR, bytes32 rewardS) = getRewardSignature(REWARD, permitHash);
+    vm.expectRevert("Reward signature is invalid");
+    gasBroker.swap{ value: 1 ether }(
+      signer,
+      address(token),
+      VALUE,
+      deadline,
+      REWARD,
+      permitV,
+      permitR,
+      permitS,
+      rewardV,
+      rewardR,
+      rewardS
+    );
+  }
 
+  function test_shouldRevertWhenSignerInRewardMessageIsInvalid() public {
+    // prepare signature for reward
+    Reward memory reward = Reward({
+      value: REWARD,
+      permitHash: permitHash
+    });
+    bytes32 digest = rewardSigUtils.getTypedDataHash(reward);
+
+    (uint8 rewardV, bytes32 rewardR, bytes32 rewardS) = vm.sign(0xB22DF, digest);
+    vm.expectRevert("Reward signature is invalid");
+    gasBroker.swap{ value: 1 ether }(
+      signer,
+      address(token),
+      VALUE,
+      deadline,
+      REWARD,
+      permitV,
+      permitR,
+      permitS,
+      rewardV,
+      rewardR,
+      rewardS
+    );
+  }
+
+
+  function test_shouldRevertWhenValueInRewardMessageIsInvalid() public {
+    (uint8 rewardV, bytes32 rewardR, bytes32 rewardS) = getRewardSignature(REWARD + 1, permitHash);
+    vm.expectRevert("Reward signature is invalid");
+    gasBroker.swap{ value: 1 ether }(
+      signer,
+      address(token),
+      VALUE,
+      deadline,
+      REWARD,
+      permitV,
+      permitR,
+      permitS,
+      rewardV,
+      rewardR,
+      rewardS
+    );
+  }
+
+  function test_shouldRevertWhenNotEnouthETHisProvided() public {
+    vm.expectRevert("Not enough ETH provided");
+    gasBroker.swap{ value: 1 ether - 1 }(
+      signer,
+      address(token),
+      VALUE,
+      deadline,
+      REWARD,
+      permitV,
+      permitR,
+      permitS,
+      rewardV,
+      rewardR,
+      rewardS
+    );
+  }
+
+
+  function test_shouldSwapTokensToETH() public {
     gasBroker.swap{ value: 1 ether }(
       signer,
       address(token),
