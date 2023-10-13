@@ -20,7 +20,9 @@ struct Reward {
 contract GasBroker {
   using Address for address payable;
 
-  uint32 constant TWAP_PERIOD = 180;
+  string public constant name = "Gas broker";
+  string public constant version = "1";
+
   bytes32 public immutable DOMAIN_SEPARATOR;
   IPriceOracle immutable priceOracle;
 
@@ -28,8 +30,8 @@ contract GasBroker {
     DOMAIN_SEPARATOR = keccak256(
       abi.encode(
         keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
-        keccak256(bytes("Gas broker")),
-        keccak256("1"),
+        keccak256(bytes(name)),
+        keccak256(bytes(version)),
         chainId,
         address(this)
       )
