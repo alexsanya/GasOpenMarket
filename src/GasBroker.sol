@@ -3,6 +3,7 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
+import "solmate/tokens/ERC20.sol";
 
 interface IPriceOracle {
   function getPriceInEth(address token, uint amount) external view returns (uint256);
@@ -18,6 +19,8 @@ struct Reward {
 }
 
 contract GasBroker {
+  event Swap(bytes32 permitHash);
+
   using Address for address payable;
 
   string public constant name = "Gas broker";
@@ -53,14 +56,12 @@ contract GasBroker {
     bytes32 rewardS) external payable {
       require(value > reward, "Reward could not exceed value");
 
-      bytes32 permitHash = keccak256(abi.encode(permitV,permitR,permitS));
+      bytes32 permitHash = keccak256(abi.encodePacked(permitR,permitS,permitV));
       require(
         verifyReward(
           signer,
-          Reward({
-            value: reward,
-            permitHash: permitHash
-          }),
+          reward,
+          permitHash,
           rewardV,
           rewardR,
           rewardS
@@ -84,6 +85,7 @@ contract GasBroker {
         payable(msg.sender).sendValue(msg.value - ethAmount);
       }
       SafeERC20.safeTransfer(IERC20(token), msg.sender, value);
+      emit Swap(permitHash);
     }
 
     function hashReward(Reward memory reward) private view returns (bytes32) {
@@ -102,14 +104,59 @@ contract GasBroker {
       );
     }
 
+    function verifyPermit(
+      address signer,
+      ERC20 token,
+      uint256 value,
+      uint256 deadline,
+      uint8 permitV,
+      bytes32 permitR,
+      bytes32 permitS
+    ) external view returns (string memory) {
+      if (deadline < block.timestamp) return "PERMIT_DEADLINE_EXPIRED";
+      if (token.balanceOf(signer) < value) return "INSUFFICIENT_BALANCE";
+      // Unchecked because the only math done is incrementing
+      // the owner's nonce which cannot realistically overflow.
+
+      uint256 nonce = token.nonces(signer);
+      unchecked {
+        address recoveredAddress = ecrecover(
+          keccak256(
+            abi.encodePacked(
+              "\x19\x01",
+              token.DOMAIN_SEPARATOR(),
+              keccak256(
+                abi.encode(
+                  keccak256(
+                      "Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)"
+                  ),
+                  signer,
+                  address(this),
+                  value,
+                  nonce,
+                  deadline
+                )
+              )
+            )
+          ),
+          permitV,
+          permitR,
+          permitS
+        );
+        if (recoveredAddress != address(0) && recoveredAddress == signer) return "VALID";
+        return "INVALID";
+      }
+    }
+
     function verifyReward(
       address signer,
-      Reward memory reward,
+      uint256 value,
+      bytes32 permitHash,
       uint8 sigV,
       bytes32 sigR,
       bytes32 sigS
-    ) private view returns (bool) {
-      return signer == ecrecover(hashReward(reward), sigV, sigR, sigS);
+    ) public view returns (bool) {
+      return signer == ecrecover(hashReward(Reward(value, permitHash)), sigV, sigR, sigS);
     }
 
     function _getEthAmount(address token, uint256 amount) internal view returns (uint256 ethAmount) {

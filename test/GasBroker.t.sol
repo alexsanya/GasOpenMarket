@@ -61,7 +61,7 @@ contract GasBrokerTest is Test {
     // prepare signature for permit
     (permitV, permitR, permitS) = getPermitSignature(signer, VALUE);
 
-    permitHash = keccak256(abi.encode(permitV,permitR,permitS));
+    permitHash = keccak256(abi.encodePacked(permitR,permitS,permitV));
     // prepare signature for reward
     (rewardV, rewardR, rewardS) = getRewardSignature(REWARD, permitHash);
   }

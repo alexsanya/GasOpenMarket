@@ -55,7 +55,7 @@ contract IntegrationTest is Test {
     // prepare signature for permit
     (uint8 permitV, bytes32 permitR, bytes32 permitS) = getPermitSignature(signer, VALUE);
 
-    bytes32 permitHash = keccak256(abi.encode(permitV,permitR,permitS));
+    bytes32 permitHash = keccak256(abi.encodePacked(permitR,permitS,permitV));
     // prepare signature for reward
     (uint8 rewardV, bytes32 rewardR, bytes32 rewardS) = getRewardSignature(REWARD, permitHash);
     uint256 value = gasBroker.getEthAmount(address(usdc), VALUE - REWARD);
