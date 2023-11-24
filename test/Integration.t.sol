@@ -13,12 +13,12 @@ import "../src/GasBroker.sol";
 contract IntegrationTest is Test {
   using Address for address payable;
 
-  uint256 constant VALUE = 100e6;
-  uint256 constant REWARD = 10e6;
-  uint256 constant SIGNER_USDC_BALANCE = 150e6;
+  uint256 constant VALUE = 10e6;
+  uint256 constant REWARD = 1e6;
+  uint256 constant SIGNER_USDC_BALANCE = 15e6;
   uint256 constant SIGNER_PRIVATE_KEY = 0xA11CE;
-  ERC20 constant usdc = ERC20(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48);
-  address constant USDC_WHALE = address(0xDa9CE944a37d218c3302F6B82a094844C6ECEb17);
+  ERC20 constant usdc = ERC20(0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359);//0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48);
+  address constant USDC_WHALE = address(0xC882b111A75C0c657fC507C04FbFcD2cC984F071);//0xDa9CE944a37d218c3302F6B82a094844C6ECEb17);
 
   address signer;
   uint256 deadline;

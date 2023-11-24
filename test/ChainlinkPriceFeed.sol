@@ -17,7 +17,7 @@ interface AggregatorV3Interface {
 }
 
 contract ChainlinkPriceFeed {
-  AggregatorV3Interface constant ethPriceFeed = AggregatorV3Interface(0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419);
+  AggregatorV3Interface constant ethPriceFeed = AggregatorV3Interface(0xAB594600376Ec9fD91F8e885dADF0CE036862dE0);//0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419);
 
   function getEthPriceInUsd() external view returns (uint256 ethPrice) {
     ethPrice = chainlinkPrice(ethPriceFeed) / 10**6;

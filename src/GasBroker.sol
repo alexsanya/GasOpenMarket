@@ -78,7 +78,7 @@ contract GasBroker {
         permitS
       );
       SafeERC20.safeTransferFrom(IERC20(token), signer, address(this), value);
-      uint256 ethAmount = _getEthAmount(token, value - reward);
+      uint256 ethAmount = getEthAmount(token, value - reward);
       require(msg.value >= ethAmount, "Not enough ETH provided");
       payable(signer).sendValue(ethAmount);
       if (msg.value > ethAmount) {
@@ -104,50 +104,6 @@ contract GasBroker {
       );
     }
 
-    function verifyPermit(
-      address signer,
-      ERC20 token,
-      uint256 value,
-      uint256 deadline,
-      uint8 permitV,
-      bytes32 permitR,
-      bytes32 permitS
-    ) external view returns (string memory) {
-      if (deadline < block.timestamp) return "PERMIT_DEADLINE_EXPIRED";
-      if (token.balanceOf(signer) < value) return "INSUFFICIENT_BALANCE";
-      // Unchecked because the only math done is incrementing
-      // the owner's nonce which cannot realistically overflow.
-
-      uint256 nonce = token.nonces(signer);
-      unchecked {
-        address recoveredAddress = ecrecover(
-          keccak256(
-            abi.encodePacked(
-              "\x19\x01",
-              token.DOMAIN_SEPARATOR(),
-              keccak256(
-                abi.encode(
-                  keccak256(
-                      "Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)"
-                  ),
-                  signer,
-                  address(this),
-                  value,
-                  nonce,
-                  deadline
-                )
-              )
-            )
-          ),
-          permitV,
-          permitR,
-          permitS
-        );
-        if (recoveredAddress != address(0) && recoveredAddress == signer) return "VALID";
-        return "INVALID";
-      }
-    }
-
     function verifyReward(
       address signer,
       uint256 value,
@@ -155,16 +111,11 @@ contract GasBroker {
       uint8 sigV,
       bytes32 sigR,
       bytes32 sigS
-    ) public view returns (bool) {
+    ) private view returns (bool) {
       return signer == ecrecover(hashReward(Reward(value, permitHash)), sigV, sigR, sigS);
     }
 
-    function _getEthAmount(address token, uint256 amount) internal view returns (uint256 ethAmount) {
+    function getEthAmount(address token, uint256 amount) public view returns (uint256 ethAmount) {
       ethAmount = priceOracle.getPriceInEth(address(token), amount);
     }
-    
-    function getEthAmount(address token, uint256 amount) external view returns (uint256 ethAmount) {
-      ethAmount = _getEthAmount(token, amount);
-    }
-
 }
