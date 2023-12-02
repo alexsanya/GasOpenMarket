@@ -6,8 +6,6 @@ import '@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol';
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "solmate/tokens/WETH.sol";
 
-import "forge-std/console2.sol";
-
 contract GasProviderHelper {
   using Address for address payable;
 
@@ -55,7 +53,6 @@ contract GasProviderHelper {
     weth.withdraw(weiToBorrow);
     (bool success, bytes memory data) = gasBroker.call{ value: extraValue + weiToBorrow }(swapCalldata);
     require(success, "Swap failed");
-    console2.logBytes(data);
     swapExactInputSingle(token, IERC20(token).balanceOf(address(this)));
     weth.deposit{value: address(this).balance}();
     uint256 amountToRepay = weiToBorrow + fee0;
