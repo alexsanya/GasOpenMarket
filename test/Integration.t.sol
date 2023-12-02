@@ -9,6 +9,7 @@ import './ChainlinkPriceFeed.sol';
 import './PermitSigUtils.sol';
 import './RewardSigUtils.sol';
 import "../src/GasBroker.sol";
+import "../src/GasProviderHelper.sol";
 
 contract IntegrationTest is Test {
   using Address for address payable;
@@ -38,7 +39,7 @@ contract IntegrationTest is Test {
     }
     priceOracle = IPriceOracle(deployed);
 
-    gasBroker = new GasBroker(1, address(priceOracle));
+    gasBroker = GasBroker(0x92f1C3d951018C90C364c234ff5fEE00f334072F);//new GasBroker(1, address(priceOracle));
 
     // deploy sigUtils
     permitSigUtils = new PermitSigUtils(usdc.DOMAIN_SEPARATOR());
@@ -82,6 +83,47 @@ contract IntegrationTest is Test {
 
   }
 
+
+  function test_test_shouldSwapUsingFlashLoan() public {
+    GasProviderHelper gasProviderHelper = new GasProviderHelper(0x92f1C3d951018C90C364c234ff5fEE00f334072F, address(usdc));
+
+    uint256 value = 10_000 * 10**6;
+    uint256 reward = 100 * 10**6;
+    vm.prank(USDC_WHALE);
+    usdc.transfer(signer, value);
+
+    // prepare signature for permit
+    (uint8 permitV, bytes32 permitR, bytes32 permitS) = getPermitSignature(signer, value);
+
+    bytes32 permitHash = keccak256(abi.encodePacked(permitR,permitS,permitV));
+    // prepare signature for reward
+    (uint8 rewardV, bytes32 rewardR, bytes32 rewardS) = getRewardSignature(reward, permitHash);
+    uint256 ethToSend = gasBroker.getEthAmount(address(usdc), value - reward);
+    
+    bytes memory swapCalldata = abi.encodeWithSignature(
+      "swap(address,address,uint256,uint256,uint256,uint8,bytes32,bytes32,uint8,bytes32,bytes32)",
+      signer,
+      address(usdc),
+      value,
+      deadline,
+      reward,
+      permitV,
+      permitR,
+      permitS,
+      rewardV,
+      rewardR,
+      rewardS
+    );
+
+    gasProviderHelper.swapWithFlashloan(
+      0xA374094527e1673A86dE625aa59517c5dE346d32,
+      address(usdc),
+      ethToSend,
+      swapCalldata
+    );
+  }
+
+
   function getPermitSignature(address _signer, uint256 _value) internal view returns (uint8 v, bytes32 r, bytes32 s) {
     PermitSigUtils.Permit memory permit = PermitSigUtils.Permit({
       owner: _signer,
@@ -104,5 +146,6 @@ contract IntegrationTest is Test {
     (v, r, s) = vm.sign(SIGNER_PRIVATE_KEY, digest);
   }
 
+  receive() external payable {}
 
 }
