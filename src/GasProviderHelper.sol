@@ -11,8 +11,7 @@ contract GasProviderHelper {
 
   WETH constant weth = WETH(payable(0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270));
   ISwapRouter swapRouter = ISwapRouter(0xE592427A0AEce92De3Edee1F18E0157C05861564);
-  address immutable gasBroker; //= 0x92f1C3d951018C90C364c234ff5fEE00f334072F;
-  //IUniswapV3Pool pool = IUniswapV3Pool(0xA374094527e1673A86dE625aa59517c5dE346d32);
+  address immutable gasBroker;
   uint256 constant MAX_INT = 2**256 - 1;
 
 
