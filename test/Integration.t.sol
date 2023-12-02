@@ -19,6 +19,7 @@ contract IntegrationTest is Test {
   uint256 constant SIGNER_USDC_BALANCE = 15e6;
   uint256 constant SIGNER_PRIVATE_KEY = 0xA11CE;
   ERC20 constant usdc = ERC20(0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359);//0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48);
+  ERC20 constant weth = ERC20(0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270);
   address constant USDC_WHALE = address(0xC882b111A75C0c657fC507C04FbFcD2cC984F071);//0xDa9CE944a37d218c3302F6B82a094844C6ECEb17);
 
   address signer;
@@ -123,6 +124,10 @@ contract IntegrationTest is Test {
       ethToSend,
       swapCalldata
     );
+
+    assertEq(usdc.balanceOf(address(gasProviderHelper)), 0);
+    assertEq(weth.balanceOf(address(gasProviderHelper)), 0);
+    assertEq(address(gasProviderHelper).balance, 0);
 
     uint256 usdWorth = chainlinkPriceFeed.getEthPriceInUsd() * signer.balance / 10**18;
     console2.log("10K USDC been exchanged using flashloan with comission of 100 USDC to %s wei worth of %s cents", signer.balance, usdWorth);
