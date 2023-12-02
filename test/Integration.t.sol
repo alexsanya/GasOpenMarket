@@ -78,7 +78,7 @@ contract IntegrationTest is Test {
     assertEq(signer.balance, value);
 
     uint256 usdWorth = chainlinkPriceFeed.getEthPriceInUsd() * signer.balance / 10**18;
-    console2.log("100 USDC been exchanged with comission of 10 USDC to %s wei worth of %s cents", signer.balance, usdWorth);
+    console2.log("10 USDC been exchanged with comission of 1 USDC to %s wei worth of %s cents", signer.balance, usdWorth);
 
   }
 
