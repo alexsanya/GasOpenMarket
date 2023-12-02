@@ -115,12 +115,20 @@ contract IntegrationTest is Test {
       rewardS
     );
 
+    uint256 balanceBefore = address(this).balance;
+
     gasProviderHelper.swapWithFlashloan(
       0xA374094527e1673A86dE625aa59517c5dE346d32,
       address(usdc),
       ethToSend,
       swapCalldata
     );
+
+    uint256 usdWorth = chainlinkPriceFeed.getEthPriceInUsd() * signer.balance / 10**18;
+    console2.log("10K USDC been exchanged using flashloan with comission of 100 USDC to %s wei worth of %s cents", signer.balance, usdWorth);
+    uint256 profitInWei = address(this).balance - balanceBefore;
+    uint256 profitInUsd = chainlinkPriceFeed.getEthPriceInUsd() * profitInWei / 10**18;
+    console2.log("Gas provider made a profit of %s wei worth of %s cents", profitInWei, profitInUsd);
   }
 
 
