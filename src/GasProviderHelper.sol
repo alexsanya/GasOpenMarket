@@ -25,7 +25,7 @@ contract GasProviderHelper {
     address token,
     uint256 weiToBorrow,
     bytes memory swapCalldata
-  ) external payable {
+  ) external payable returns (uint256 balanceAfter) {
     // borrow WMATIC
     bytes memory data = abi.encode(
       msg.sender,
@@ -35,6 +35,7 @@ contract GasProviderHelper {
       swapCalldata
     );
     IUniswapV3Pool(pool).flash(address(this), weiToBorrow, 0, data);
+    balanceAfter = msg.sender.balance;
   }
 
   function uniswapV3FlashCallback(uint256 fee0, uint256 fee1, bytes calldata data) external {
