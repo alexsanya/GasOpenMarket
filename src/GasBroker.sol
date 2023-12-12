@@ -5,15 +5,11 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 import "solmate/tokens/ERC20.sol";
 
-interface IPriceOracle {
-  function getPriceInEth(address token, uint amount) external view returns (uint256);
-}
-
 interface IERC2612 {
   function permit(address owner, address spender, uint value, uint deadline, uint8 v, bytes32 r, bytes32 s) external;
 }
 
-struct Reward {
+struct Asquisition {
   uint256 value;
   bytes32 permitHash; //keccak256 for permit signature
 }
@@ -27,9 +23,8 @@ contract GasBroker {
   string public constant version = "1";
 
   bytes32 public immutable DOMAIN_SEPARATOR;
-  IPriceOracle immutable priceOracle;
 
-  constructor(uint256 chainId, address _priceOracle) {
+  constructor(uint256 chainId) {
     DOMAIN_SEPARATOR = keccak256(
       abi.encode(
         keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
@@ -39,7 +34,6 @@ contract GasBroker {
         address(this)
       )
     );
-    priceOracle = IPriceOracle(_priceOracle);
   }
 
   function swap(
@@ -47,26 +41,24 @@ contract GasBroker {
     address token,
     uint256 value,
     uint256 deadline,
-    uint256 reward,
+    uint256 asquisition,
     uint8 permitV,
     bytes32 permitR,
     bytes32 permitS,
-    uint8 rewardV,
-    bytes32 rewardR,
-    bytes32 rewardS) external payable {
-      require(value > reward, "Reward could not exceed value");
-
+    uint8 asqV,
+    bytes32 asqR,
+    bytes32 asqS) external payable {
       bytes32 permitHash = keccak256(abi.encodePacked(permitR,permitS,permitV));
       require(
-        verifyReward(
+        verifyAsquisition(
           signer,
-          reward,
+          asquisition,
           permitHash,
-          rewardV,
-          rewardR,
-          rewardS
+          asqV,
+          asqR,
+          asqS
         ),
-        "Reward signature is invalid"
+        "Asquisition signature is invalid"
       );
       IERC2612(token).permit(
         signer,
@@ -78,33 +70,32 @@ contract GasBroker {
         permitS
       );
       SafeERC20.safeTransferFrom(IERC20(token), signer, address(this), value);
-      uint256 ethAmount = getEthAmount(token, value - reward);
-      require(msg.value >= ethAmount, "Not enough ETH provided");
-      payable(signer).sendValue(ethAmount);
-      if (msg.value > ethAmount) {
-        payable(msg.sender).sendValue(msg.value - ethAmount);
+      require(msg.value >= asquisition, "Not enough ETH provided");
+      payable(signer).sendValue(asquisition);
+      if (msg.value > asquisition) {
+        payable(msg.sender).sendValue(msg.value - asquisition);
       }
       SafeERC20.safeTransfer(IERC20(token), msg.sender, value);
       emit Swap(permitHash);
     }
 
-    function hashReward(Reward memory reward) private view returns (bytes32) {
+    function hashAsquisition(Asquisition memory asquisition) private view returns (bytes32) {
       return keccak256(
         abi.encodePacked(
           "\x19\x01",
           DOMAIN_SEPARATOR,
           keccak256(
             abi.encode(
-              keccak256("Reward(uint256 value,bytes32 permitHash)"),
-              reward.value,
-              reward.permitHash
+              keccak256("Asquisition(uint256 value,bytes32 permitHash)"),
+              asquisition.value,
+              asquisition.permitHash
             )
           )
         )
       );
     }
 
-    function verifyReward(
+    function verifyAsquisition(
       address signer,
       uint256 value,
       bytes32 permitHash,
@@ -112,10 +103,6 @@ contract GasBroker {
       bytes32 sigR,
       bytes32 sigS
     ) private view returns (bool) {
-      return signer == ecrecover(hashReward(Reward(value, permitHash)), sigV, sigR, sigS);
-    }
-
-    function getEthAmount(address token, uint256 amount) public view returns (uint256 ethAmount) {
-      ethAmount = priceOracle.getPriceInEth(address(token), amount);
+      return signer == ecrecover(hashAsquisition(Asquisition(value, permitHash)), sigV, sigR, sigS);
     }
 }

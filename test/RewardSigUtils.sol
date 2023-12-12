@@ -11,7 +11,7 @@ contract RewardSigUtils {
   }
 
   // computes the hash of a reward
-  function getStructHash(Reward memory _reward)
+  function getStructHash(Asquisition memory asquisition)
       internal
       pure
       returns (bytes32)
@@ -19,15 +19,15 @@ contract RewardSigUtils {
       return
           keccak256(
               abi.encode(
-                  keccak256("Reward(uint256 value,bytes32 permitHash)"),
-                  _reward.value,
-                  _reward.permitHash
+                  keccak256("Asquisition(uint256 value,bytes32 permitHash)"),
+                  asquisition.value,
+                  asquisition.permitHash
               )
           );
   }
 
   // computes the hash of the fully encoded EIP-712 message for the domain, which can be used to recover the signer
-  function getTypedDataHash(Reward memory _reward)
+  function getTypedDataHash(Asquisition memory asquisition)
       public
       view
       returns (bytes32)
@@ -37,7 +37,7 @@ contract RewardSigUtils {
               abi.encodePacked(
                   "\x19\x01",
                   DOMAIN_SEPARATOR,
-                  getStructHash(_reward)
+                  getStructHash(asquisition)
               )
           );
   }
